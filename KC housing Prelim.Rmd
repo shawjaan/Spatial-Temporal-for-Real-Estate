@@ -1,0 +1,310 @@
+```{r}
+
+library(readr)
+library(tseries)
+library(TSA)
+```
+
+```{r}
+# set working directory
+
+# construct paths to files
+f_path <- file.path("/Users/justinshaw/Downloads/kc_house_data.csv")
+df <- read_csv(f_path, col_names=TRUE)
+head(df)
+```
+
+```{r}
+colnames(df)
+
+# Extract specific columns from the dataframe
+df <- df[, c("lat", "long", "date")]
+
+```
+
+# Data Inspeaction
+
+```{r}
+df$date <- as.Date(df$date)
+
+head(df)
+
+summary(df$long)
+summary(df$lat)
+summary(df$date)
+```
+
+
+```{r}
+
+nrow(df)
+max(df$date)
+min(df$date)
+```
+
+# Temporal Visualization
+
+```{r}
+library(ggplot2)
+
+df$day <- weekdays(df$date)
+df$day
+boxplot(df$date)
+
+# Create the histogram plot
+ggplot(df, aes(x = day)) +
+  geom_bar(fill = "lightblue") +
+  labs(title = "Histogram of Rows by Day of the Week",
+       x = "Day of the Week",
+       y = "Count")
+```
+
+
+
+```{r}
+library(ggplot2)
+library(lubridate)
+# aggregate by day
+ggplot(df) + aes(x = date) + 
+  geom_bar() +
+  ggtitle("Count of Transactions per Day")
+
+```
+
+```{r}
+#aggregate by month
+ggplot(df) + aes(x = lubridate::floor_date(date, "month")) + 
+  geom_bar() + 
+  ggtitle("Count of Transactions per Month")
+```
+
+```{r}
+# create a new data frame with counts per day
+daily_counts <- as.data.frame(table(lubridate::floor_date(df$date, "day")))
+names(daily_counts) <- c("date", "count")
+daily_counts$date <- as.Date(daily_counts$date)
+
+# calculate cumulative sum
+daily_counts$cumulative <- cumsum(daily_counts$count)
+
+# create the line plot
+ggplot(daily_counts, aes(x = date, y = cumulative)) +
+  geom_line(color = "blue") +
+  xlab("Date") +
+  ylab("Cumulative Transaction Count") +
+  ggtitle("Cumulative Daily Real Estate Transactions")
+
+```
+
+
+# Spatial analysis
+
+
+```{r}
+plot(df$long, df$lat, xlab = "Longitude", ylab = "Latitude", main = "Plot of Latitude vs. Longitude")
+```
+
+
+```{r}
+# install.packages("spacetime")
+library(spatstat)
+library(spacetime)
+```
+
+
+```{r}
+# https://github.com/lisahuang2/housing_data_ML/blob/master/1%20-%20EDA%20and%20visualizations.R
+# install.packages("maps")
+library(maps)
+library(ggplot2)
+```
+
+```{r}
+#Obtain the map data of King County from the maps library 
+washington <- map_data("county", region="washington")
+king.county <- subset(washington, subregion=="king")
+head(king.county)
+```
+
+
+```{r}
+#Examine house locations across the county by plotting the the coordinate positions of each 
+#house in the king data set, using geom_point():
+ggplot() +
+  geom_path(data=king.county, aes(x=long, y=lat, group=group), color="black") +
+  geom_point(data=df, aes(x = long, y = lat), alpha=.1) +
+  coord_quickmap() +
+  theme_bw() 
+```
+
+# Alternative outline
+# https://gis-kingcounty.opendata.arcgis.com/datasets/kingcounty::king-county-political-boundary-no-waterbodies-kingco-area/explore?location=47.472081%2C-121.920728%2C9.83
+
+```{r}
+search()
+library(sf)
+king_shape <- read_sf(dsn = "/Users/justinshaw/Downloads/King_County_Political_Boundary_(no_waterbodies)___kingco_area", layer = "King_County_Political_Boundary_(no_waterbodies)___kingco_area")
+king_shape
+
+plot(df$long, df$lat)
+```
+
+
+```{r}
+# modify points data to SF
+points_data <- st_as_sf(df[,c("long", "lat") ], coords = c("long", "lat"), crs = st_crs(king_shape))
+points_data
+```
+
+```{r}
+par(mfrow=c(1,1))
+# Plot the multipolygon and points using ggplot
+ggplot() +
+  geom_sf(data = king_shape) +
+  geom_sf(data = points_data, color = "red", alpha=.3) +
+  theme_bw() +
+  ggtitle("All Real Estate Transactions in King county")
+```
+
+# spatial Histograms
+
+```{r}
+par()
+
+hist(df$long)
+hist(df$lat)
+```
+
+
+# Density Plots
+
+```{r}
+
+s_points <- df[, c("long", "lat")]
+plot(s_points)
+
+```
+
+```{r}
+ggplot() +
+    geom_sf(data = king_shape) +
+    geom_point(data=s_points, aes(x=long, y=lat)) +
+    geom_density_2d()
+
+m <- ggplot(s_points, aes(x=long, y=lat)) +
+    geom_point()
+
+m + geom_density_2d_filled(alpha=0.7) + ggtitle("Contours from 2D Kernel Density Estimation")
+
+```
+# Nearest Neighbor Distances
+
+```{r}
+
+library(spatstat)
+point_loc <- df[, c("long", "lat")]
+
+point_loc
+
+nnd <- nndist(point_loc)
+
+nnd2 <- subset(nnd, nnd<.025)
+
+hist(nnd2, breaks = 50, main = "Nearest Neighbor Distance Histogram")
+
+```
+
+
+# UTM
+
+```{r}
+point_loc
+```
+
+### Breaks Code
+# Homogeneous Poisson Equivalent
+
+```{r}
+# library(spatstat)
+```
+
+```{r}
+# print(king_shape)
+```
+
+```{r}
+# install.packages("maptools")
+# library(maptools)
+
+# Convert sfc_MULTIPOLYGON to sf object
+# sf_object <- as(king_shape, "sf")
+
+
+# Convert SpatialPolygons object to owin object
+# owin_object <- as.owin(sf_object)
+
+```
+
+```{r}
+# Delete
+# print(sf_object)
+```
+
+```{r}
+# Estimate Lambda
+
+# n_points <- nrow(df)
+
+# space_area <- st_area(king_shape)
+
+# max(df$date) - min(df$date)
+# space_area
+# lambda_hat <- n_points/(space_area*390)
+# lambda_hat
+```
+
+
+```{r}
+# par(mfrow=c(1,2))
+
+# Generate a Poisson point process within the window
+# lambda <- lambda_hat # intensity of the point process
+# ppp <- rpoispp(lambda, win = owin_object)
+# lambda
+
+# plot(owin_object, main = "Simulated Spatial Poisson Process")
+# plot(ppp, add = TRUE)
+
+```
+
+```{r}
+# min(df$date )
+# df_1day <- df[df$date == "2014-05-05",]
+# df_1day
+# x <- as.numeric(df_1day$long)
+# y <- as.numeric(df_1day$lat)
+
+# ppp_1day <- ppp(x,y, owin_object)
+
+# plot(owin_object, main = "Single Day of Transactions")
+# plot(ppp_1day, add = TRUE)
+
+
+```
+
+# accompanying nn histograms
+
+```{r}
+# par(mfrow = c(1,2))
+# nnd <- nndist(df_1day)
+
+# hist(nnd, breaks = 15, main = "NN Dist Hist - 1 Sample Day")
+
+# nnd_pois <- nndist(ppp)
+
+# hist(nnd_pois, breaks = 15, main = "NN Dist Hist - 1 Pois. Simulated Day")
+
+```
+
+```{r}
+```
