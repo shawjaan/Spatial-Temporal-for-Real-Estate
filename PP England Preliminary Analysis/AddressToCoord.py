@@ -11,9 +11,6 @@ from geopy.geocoders import Nominatim
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
-# to by overriding the default user_agent: 
-# import geopy
-# geopy.geocoders.options.default_user_agent = "my-application"
 
 geolocator = Nominatim(user_agent="shawjustin416@gmail.com", timeout=100)
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
